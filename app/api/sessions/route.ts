@@ -1,4 +1,5 @@
 import { getSessions } from '@/lib/weflow'
+import { hasProfile } from '@/lib/profile'
 
 function shouldKeepSession(username: string) {
   return (
@@ -22,10 +23,16 @@ export async function GET(req: Request) {
     const sessions = (await getSessions(keyword, limit)).filter(
       session => shouldKeepSession(session.username)
     )
+    const sessionsWithProfiles = await Promise.all(
+      sessions.map(async session => ({
+        ...session,
+        hasProfile: await hasProfile(session.username),
+      }))
+    )
     return Response.json({
       success: true,
-      count: sessions.length,
-      sessions,
+      count: sessionsWithProfiles.length,
+      sessions: sessionsWithProfiles,
     })
   } catch (error) {
     return Response.json(

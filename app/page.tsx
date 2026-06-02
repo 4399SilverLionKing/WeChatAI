@@ -11,7 +11,7 @@ import type { Session } from '@/lib/weflow'
 type SessionsResponse = {
   success: boolean
   count: number
-  sessions: Session[]
+  sessions: Array<Session & { hasProfile?: boolean }>
   error?: string
 }
 
@@ -35,7 +35,7 @@ function formatTime(timestamp: number) {
 export default function HomePage() {
   const [keyword, setKeyword] = useState('')
   const [query, setQuery] = useState('')
-  const [sessions, setSessions] = useState<Session[]>([])
+  const [sessions, setSessions] = useState<Array<Session & { hasProfile?: boolean }>>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [health, setHealth] = useState<HealthResponse | null>(null)
@@ -97,9 +97,9 @@ export default function HomePage() {
   const connected = Boolean(health?.success)
 
   return (
-    <main className="min-h-svh bg-background">
-      <div className="mx-auto flex min-h-svh w-full max-w-5xl flex-col px-5 py-5">
-        <header className="flex flex-col gap-4 border-b pb-4">
+    <main className="h-svh overflow-hidden bg-background">
+      <div className="mx-auto flex h-full w-full max-w-5xl flex-col px-5 py-4">
+        <header className="flex shrink-0 flex-col gap-4 border-b pb-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
@@ -137,7 +137,7 @@ export default function HomePage() {
         </header>
 
         <section className="min-h-0 flex-1 pt-4">
-          <ScrollArea className="h-[calc(100svh-132px)] min-h-[360px] rounded-md border">
+          <ScrollArea className="h-full rounded-md border">
             {loading ? (
               <div className="p-4 text-sm text-muted-foreground">正在读取 WeFlow 会话列表...</div>
             ) : error ? (
@@ -154,7 +154,14 @@ export default function HomePage() {
                     className="grid gap-2 px-4 py-3 text-sm transition-colors hover:bg-muted/50 md:grid-cols-[minmax(0,1fr)_150px] md:items-center"
                   >
                     <div className="min-w-0">
-                      <div className="truncate font-medium">{session.displayName || '未命名会话'}</div>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <div className="truncate font-medium">{session.displayName || '未命名会话'}</div>
+                        {session.hasProfile && (
+                          <Badge variant="outline" className="h-4 shrink-0 px-1.5 text-[10px]">
+                            画像
+                          </Badge>
+                        )}
+                      </div>
                       <div className="mt-1 truncate text-xs text-muted-foreground">{session.username}</div>
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground md:justify-end">

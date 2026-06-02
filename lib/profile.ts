@@ -37,6 +37,17 @@ export function getProfilePath(talker: string) {
   return path.join(getTalkerResourceDir(talker), PROFILE_JSON_FILE)
 }
 
+export async function hasProfile(talker: string) {
+  try {
+    await fs.access(getProfilePath(talker))
+    return true
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT') return false
+    throw error
+  }
+}
+
 export async function readProfile(talker: string) {
   const filePath = getProfilePath(talker)
 
