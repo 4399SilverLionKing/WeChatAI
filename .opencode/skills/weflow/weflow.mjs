@@ -56,6 +56,54 @@ async function weflowFetch(path, params = {}, token) {
   return res.json()
 }
 
+async function fetchMessages(talker, opts, token) {
+  const limit = Math.max(1, Number(opts.limit || 100))
+  const directParams = { talker, limit }
+  if (opts.start) directParams.start = opts.start
+  if (opts.end) directParams.end = opts.end
+  if (opts.keyword) directParams.keyword = opts.keyword
+
+  const direct = await weflowFetch('/messages', directParams, token)
+  if (Array.isArray(direct.messages) && direct.messages.length > 0) {
+    return direct
+  }
+
+  const messages = []
+  let offset = 0
+  let sync = null
+
+  while (messages.length < limit) {
+    const pageLimit = Math.min(5000, limit - messages.length)
+    const params = { limit: pageLimit, offset }
+    if (opts.start) params.since = opts.start
+    if (opts.end) params.end = opts.end
+
+    const page = await weflowFetch(`/sessions/${encodeURIComponent(talker)}/messages`, params, token)
+    const pageMessages = Array.isArray(page.messages) ? page.messages : []
+
+    if (pageMessages.length === 0) break
+
+    messages.push(...pageMessages)
+    sync = page.sync || null
+
+    if (!page.sync?.hasMore) break
+
+    const nextOffset = Number(page.sync.nextOffset)
+    offset = Number.isFinite(nextOffset) && nextOffset > offset
+      ? nextOffset
+      : offset + pageMessages.length
+  }
+
+  return {
+    success: true,
+    talker,
+    count: messages.length,
+    hasMore: Boolean(sync?.hasMore),
+    sync,
+    messages,
+  }
+}
+
 const [, , command, ...rest] = process.argv
 const opts = parseArgs(rest)
 const token = opts.token || TOKEN
@@ -77,12 +125,7 @@ async function main() {
     }
     case 'messages': {
       if (!opts.talker) { console.error('--talker is required'); process.exit(1) }
-      const params = { talker: opts.talker }
-      if (opts.limit) params.limit = Number(opts.limit)
-      if (opts.start) params.start = opts.start
-      if (opts.end) params.end = opts.end
-      if (opts.keyword) params.keyword = opts.keyword
-      result = await weflowFetch('/messages', params, token)
+      result = await fetchMessages(opts.talker, opts, token)
       break
     }
     case 'contacts': {

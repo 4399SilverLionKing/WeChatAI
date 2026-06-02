@@ -72,6 +72,7 @@ export type Message = {
   serverId?: string | number
   talker?: string
   sender?: string
+  accountName?: string
   senderName?: string
   senderUsername?: string
   content?: string
@@ -84,6 +85,19 @@ export type Message = {
   createTime?: number
   isSelf?: boolean
   isSend?: boolean | number
+  platformMessageId?: string | number
+}
+
+type MessagesResponse = {
+  messages?: Message[]
+}
+
+type ChatLabMessagesResponse = {
+  messages?: Message[]
+  sync?: {
+    hasMore?: boolean
+    nextOffset?: number
+  }
 }
 
 export async function getSessions(keyword?: string, limit?: number): Promise<Session[]> {
@@ -97,6 +111,42 @@ export async function getContacts(keyword?: string, limit = 100): Promise<Contac
 }
 
 export async function getMessages(talker: string, limit = 100): Promise<Message[]> {
-  const data = await get<{ messages: Message[] }>('/messages', { talker, limit })
-  return data.messages ?? []
+  const target = Math.max(0, Math.floor(limit))
+  if (!target) return []
+
+  const loadRawMessages = async () => {
+    const data = await get<MessagesResponse>('/messages', { talker, limit: target })
+    return data.messages ?? []
+  }
+
+  try {
+    const messages: Message[] = []
+    let offset = 0
+
+    while (messages.length < target) {
+      const pageLimit = Math.min(5000, target - messages.length)
+      const data = await get<ChatLabMessagesResponse>(
+        `/sessions/${encodeURIComponent(talker)}/messages`,
+        { limit: pageLimit, offset }
+      )
+      const pageMessages = data.messages ?? []
+
+      if (pageMessages.length === 0) break
+
+      messages.push(...pageMessages)
+
+      if (!data.sync?.hasMore) break
+
+      const nextOffset = Number(data.sync.nextOffset)
+      offset = Number.isFinite(nextOffset) && nextOffset > offset
+        ? nextOffset
+        : offset + pageMessages.length
+    }
+
+    if (messages.length > 0) return messages
+  } catch {
+    // Fall back to the raw messages endpoint below.
+  }
+
+  return loadRawMessages()
 }

@@ -13,7 +13,7 @@ function formatTime(timestamp: number | undefined) {
 
 function messageToLine(message: Message) {
   const direction = message.isSelf || message.isSend ? 'me' : 'other'
-  const sender = message.senderName ?? message.sender ?? message.senderUsername ?? direction
+  const sender = message.senderName ?? message.accountName ?? message.sender ?? message.senderUsername ?? direction
   const content = message.content ?? message.text ?? message.parsedContent ?? message.rawContent ?? ''
   const text = content.length > 500 ? `${content.slice(0, 500)}...` : content
 
@@ -54,13 +54,16 @@ export async function POST(req: Request) {
       fs.readFile('.opencode/skills/profile-analysis/SKILL.md', 'utf8'),
     ])
 
+    if (messages.length === 0) {
+      throw new Error(`未从 WeFlow 读取到 ${talker} 的聊天记录，已停止生成画像`)
+    }
+
     const opencode = createOpencode({ autoStartServer: true })
     const chatLog = messages.map(messageToLine).join('\n')
     const generatedAt = new Date().toISOString()
 
     const result = await generateText({
       model: opencode('cubence/gpt-5.5'),
-      maxOutputTokens: 8000,
       timeout: 300000,
       system: `你是一个严谨的人物画像分析师。必须遵守下面 profile-analysis skill，只基于给定聊天记录做判断。
 
@@ -88,7 +91,7 @@ ${chatLog}
         displayName,
         messageCount: messages.length,
         generatedAt,
-        source: 'WeFlow /api/v1/messages',
+        source: 'WeFlow /api/v1/sessions/:id/messages',
         limit: MESSAGE_LIMIT,
       },
     })
