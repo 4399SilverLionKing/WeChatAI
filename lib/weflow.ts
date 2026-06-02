@@ -68,15 +68,22 @@ export type Contact = {
 export type Message = {
   id?: string | number
   msgId?: string | number
+  localId?: string | number
+  serverId?: string | number
   talker?: string
   sender?: string
   senderName?: string
+  senderUsername?: string
   content?: string
   text?: string
+  rawContent?: string
+  parsedContent?: string
   type?: string | number
+  localType?: string | number
   timestamp?: number
   createTime?: number
   isSelf?: boolean
+  isSend?: boolean | number
 }
 
 export async function getSessions(keyword?: string, limit?: number): Promise<Session[]> {
